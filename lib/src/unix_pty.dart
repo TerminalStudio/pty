@@ -8,8 +8,8 @@ import 'package:pty/src/unix_proc.dart';
 import 'package:pty/src/util/globals.dart';
 import 'package:pty/src/util/strconv.dart';
 
-class PtyUnix implements Pty {
-  PtyUnix() {
+class UnixPty implements Pty {
+  UnixPty() {
     final dev = Utf8.toUtf8('/dev/ptmx');
     final ptm = unistd.open(dev.cast<Int8>(), O_RDWR | O_CLOEXEC);
 

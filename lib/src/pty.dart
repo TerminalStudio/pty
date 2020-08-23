@@ -1,16 +1,16 @@
 import 'dart:io';
 
 import 'package:pty/src/proc.dart';
+import 'package:pty/src/win_pty.dart';
 
 import './unix_pty.dart';
 
 abstract class Pty {
   factory Pty() {
     if (Platform.isWindows) {
-      // return PtyWindows();
-      return null;
+      return WinPty();
     } else {
-      return PtyUnix();
+      return UnixPty();
     }
   }
 

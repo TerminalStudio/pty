@@ -5,24 +5,23 @@ import 'package:pty/src/unistd.dart';
 import 'package:pty/src/util/globals.dart';
 
 class UnixProc implements Proc {
-  UnixProc(this.pid);
+  UnixProc(this.hProcess);
 
-  @override
-  final int pid;
+  final int hProcess;
 
   @override
   void waitSync() {
-    rawWait(pid);
+    rawWait(hProcess);
   }
 
   @override
   Future<void> wait() async {
-    return executor.submitCallable(rawWait, pid);
+    return executor.submitCallable(rawWait, hProcess);
   }
 
   @override
   void kill() {
-    unistd.kill(pid, SIGKILL);
+    unistd.kill(hProcess, SIGKILL);
   }
 }
 

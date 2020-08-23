@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:pty/pty.dart';
 
 void main() async {
@@ -5,8 +7,10 @@ void main() async {
 
   pty.resize(50, 20);
 
+  final script = Platform.isWindows ? r'.\test.bat' : 'test.sh';
+
   final proc = pty.exec(
-    './test.sh',
+    script,
     workingDirectory: '.',
     arguments: [],
   );

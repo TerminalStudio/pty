@@ -1,5 +1,5 @@
 abstract class Proc {
-  int get pid;
+  // int get hProcess;
 
   void kill();
   
