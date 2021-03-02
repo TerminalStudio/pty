@@ -1,33 +1,78 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:pty/src/proc.dart';
-import 'package:pty/src/win_pty.dart';
+import 'package:pty/src/impl/unix.dart';
+import 'package:pty/src/pty_core.dart';
 
-import './unix_pty.dart';
+class PseudoTerminal {
+  static PseudoTerminal start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    // bool includeParentEnvironment = true,
+    // bool runInShell = false,
+    // ProcessStartMode mode = ProcessStartMode.normal,
+  }) {
+    final core = PtyCoreUnix.start(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
 
-abstract class Pty {
-  factory Pty() {
-    if (Platform.isWindows) {
-      return WinPty();
-    } else {
-      return UnixPty();
+    return PseudoTerminal._(core);
+  }
+
+  PseudoTerminal._(this._core) {
+    Timer.periodic(Duration(milliseconds: 15), _poll);
+  }
+
+  late final PtyCore _core;
+
+  final _exitCode = Completer<int>();
+  final _in = StreamController<String>();
+  final _out = StreamController<String>();
+
+  void _poll(Timer timer) {
+    final exit = _core.exitCodeNonBlocking();
+    if (exit != null) {
+      _exitCode.complete(exit);
+      _in.close();
+      _out.close();
+      timer.cancel();
+    }
+
+    var data = _core.readNonBlocking();
+    while (data != null) {
+      _out.add(data);
+      data = _core.readNonBlocking();
     }
   }
 
-  String readSync();
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    return _core.kill(signal);
+  }
 
-  Future<String> read();
+  Future<int> get exitCode {
+    return _exitCode.future;
+  }
 
-  void write(String data);
+  int get pid {
+    return _core.pid;
+  }
 
-  void resize(int width, int height);
+  void write(String input) {
+    final data = utf8.encode(input);
+    _core.write(data);
+  }
 
-  Proc exec(
-    String executable, {
-    String workingDirectory = '.',
-    List<String> arguments,
-    List<String> environment,
-  });
+  Stream<String> get out {
+    return _out.stream;
+  }
 
-  // void close();
+  void resize(int width, int height) {
+    _core.resize(width, height);
+  }
 }

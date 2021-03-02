@@ -1,189 +1,184 @@
-// TODOimport 'dart:convert';
-import 'dart:ffi';
+// // TODOimport 'dart:convert';
+// import 'dart:ffi';
 
-import 'package:ffi/ffi.dart';
-import 'package:pty/src/pty.dart';
-import 'package:pty/src/util/globals.dart';
-import 'package:pty/src/win_proc.dart';
-import 'package:win32/win32.dart' as win32;
+// import 'package:ffi/ffi.dart';
+// import 'package:pty/src/pty.dart';
+// import 'package:pty/src/util/globals.dart';
+// import 'package:pty/src/win_proc.dart';
+// import 'package:win32/win32.dart' as win32;
 
-class WinPty implements Pty {
-  WinPty() {
-    final size = win32.COORD.allocate();
-    size.X = 80;
-    size.Y = 25;
+// class WinPty implements Pty {
+//   WinPty() {
+//     final size = calloc<win32.COORD>().ref;
+//     size.X = 80;
+//     size.Y = 25;
 
-    final inputReadSide = allocate<IntPtr>();
-    final outputWriteSide = allocate<IntPtr>();
-    final outputReadSide = allocate<IntPtr>();
-    final inputWriteSide = allocate<IntPtr>();
+//     final inputReadSide = calloc<IntPtr>();
+//     final outputWriteSide = calloc<IntPtr>();
+//     final outputReadSide = calloc<IntPtr>();
+//     final inputWriteSide = calloc<IntPtr>();
 
-    final pipe1 = win32.CreatePipe(inputReadSide, inputWriteSide, nullptr, 0);
-    final pipe2 = win32.CreatePipe(outputReadSide, outputWriteSide, nullptr, 0);
+//     final pipe1 = win32.CreatePipe(inputReadSide, inputWriteSide, nullptr, 0);
+//     final pipe2 = win32.CreatePipe(outputReadSide, outputWriteSide, nullptr, 0);
 
-    print('pipe1 $pipe1');
-    print('pipe2 $pipe2');
+//     print('pipe1 $pipe1');
+//     print('pipe2 $pipe2');
 
-    print('inputReadSide   ${inputReadSide.value}.');
-    print('outputWriteSide ${outputWriteSide.value}.');
-    print('outputReadSide  ${outputReadSide.value}.');
-    print('inputWriteSide  ${inputWriteSide.value}.');
+//     print('inputReadSide   ${inputReadSide.value}.');
+//     print('outputWriteSide ${outputWriteSide.value}.');
+//     print('outputReadSide  ${outputReadSide.value}.');
+//     print('inputWriteSide  ${inputWriteSide.value}.');
 
-    _input = inputWriteSide.value;
-    _output = outputReadSide.value;
+//     _input = inputWriteSide.value;
+//     _output = outputReadSide.value;
 
-    _hPC = allocate<IntPtr>();
+//     _hPC = calloc<IntPtr>();
 
-    final hr = win32.CreatePseudoConsole(size.addressOf.cast<IntPtr>().value,
-        inputReadSide.value, outputWriteSide.value, 0, _hPC);
+//     final hr = win32.CreatePseudoConsole(
+//         size, inputReadSide.value, outputWriteSide.value, 0, _hPC);
 
-    print('hr $hr');
-    print('hPC ${_hPC.value}');
+//     print('hr $hr');
+//     print('hPC ${_hPC.value}');
 
-    if (win32.FAILED(hr)) {
-      print('CreatePseudoConsole failed.');
-      return;
-    }
-  }
+//     if (win32.FAILED(hr)) {
+//       print('CreatePseudoConsole failed.');
+//       return;
+//     }
+//   }
 
-  int _input;
-  int _output;
-  Pointer<IntPtr> _hPC;
+//   late final int _input;
+//   late final int _output;
+//   late final Pointer<IntPtr> _hPC;
 
-  @override
-  void resize(int width, int height) {
-    final size = win32.COORD.allocate();
-    size.X = 80;
-    size.Y = 25;
-    final hr = win32.ResizePseudoConsole(
-        Pointer.fromAddress(_hPC.value), size.addressOf.cast<IntPtr>().value);
-    print('ResizePseudoConsole $hr');
-    if (win32.FAILED(hr)) {
-      print('ResizePseudoConsole failed.');
-      return;
-    }
-    free(size.addressOf);
-  }
+//   @override
+//   void resize(int width, int height) {
+//     final size = calloc<win32.COORD>();
+//     size.ref.X = 80;
+//     size.ref.Y = 25;
+//     final hr = win32.ResizePseudoConsole(_hPC.value, size.ref);
+//     print('ResizePseudoConsole $hr');
+//     if (win32.FAILED(hr)) {
+//       print('ResizePseudoConsole failed.');
+//       return;
+//     }
+//     calloc.free(size);
+//   }
 
-  @override
-  String readSync() {
-    return rawRead(_output);
-  }
+//   @override
+//   Future<String> read() async {
+//     // return executor.submitCallable(rawRead, _output);
+//     throw 'tbd';
+//   }
 
-  @override
-  Future<String> read() {
-    return executor.submitCallable(rawRead, _output);
-  }
+//   @override
+//   void write(String data) {
+//     final cstr = data.toNativeUtf16();
+//     final written = calloc<Uint32>();
+//     // final nativeString = cstr.asTypedList(units.length + 1);
+//     // nativeString.setAll(0, units);
+//     // nativeString[units.length] = 0;
+//     // unistd.write(_ptm, cstr.cast(), units.length);
+//     final ret =
+//         win32.WriteFile(_input, cstr, data.codeUnits.length, written, nullptr);
+//     print('WriteFile $ret');
+//     print('written ${written.value}');
+//   }
 
-  @override
-  void write(String data) {
-    final cstr = Utf16.toUtf16(data);
-    final written = allocate<Uint32>();
-    // final nativeString = cstr.asTypedList(units.length + 1);
-    // nativeString.setAll(0, units);
-    // nativeString[units.length] = 0;
-    // unistd.write(_ptm, cstr.cast(), units.length);
-    final ret =
-        win32.WriteFile(_input, cstr, data.codeUnits.length, written, nullptr);
-    print('WriteFile $ret');
-    print('written ${written.value}');
-  }
+//   @override
+//   WinProc? exec(
+//     String executable, {
+//     String workingDirectory = '.',
+//     List<String> arguments = const [],
+//     List<String>? environment,
+//   }) {
+//     final si = calloc<win32.STARTUPINFOEX>();
+//     // ZeroMemory(&si, sizeof(si));
+//     // sizeOf()
+//     // si.ref.cb = sizeOf<win32.STARTUPINFOEX>();
 
-  @override
-  WinProc exec(
-    String executable, {
-    String workingDirectory = '.',
-    List<String> arguments,
-    List<String> environment,
-  }) {
-    final si = win32.STARTUPINFOEX.allocate();
-    // ZeroMemory(&si, sizeof(si));
-    // sizeOf()
-    si.cb = sizeOf<win32.STARTUPINFOEX>();
+//     final bytesRequired = calloc<IntPtr>();
+//     win32.InitializeProcThreadAttributeList(nullptr, 1, 0, bytesRequired);
 
-    final bytesRequired = allocate<IntPtr>();
-    win32.InitializeProcThreadAttributeList(nullptr, 1, 0, bytesRequired);
+//     print('bytesRequired ${bytesRequired.value}');
 
-    print('bytesRequired ${bytesRequired.value}');
+//     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
+//     // win32.HeapAlloc(win32.GetProcessHeap(), 0, bytesRequired.value);
 
-    si.lpAttributeList = allocate<Int8>(count: bytesRequired.value);
-    // win32.HeapAlloc(win32.GetProcessHeap(), 0, bytesRequired.value);
+//     if (si.ref.lpAttributeList == nullptr) {
+//       print('E_OUTOFMEMORY failed.');
+//       return null;
+//     }
 
-    if (si.lpAttributeList == nullptr) {
-      print('E_OUTOFMEMORY failed.');
-      return null;
-    }
+//     var ret = win32.InitializeProcThreadAttributeList(
+//         si.ref.lpAttributeList, 1, 0, bytesRequired);
 
-    var ret = win32.InitializeProcThreadAttributeList(
-        si.lpAttributeList, 1, 0, bytesRequired);
+//     if (ret == 0) {
+//       win32.HeapFree(win32.GetProcessHeap(), 0, si.ref.lpAttributeList);
+//       final err = win32.HRESULT_FROM_WIN32(win32.GetLastError());
+//       print('GetLastError $err.');
+//       return null;
+//     }
 
-    if (ret == 0) {
-      win32.HeapFree(win32.GetProcessHeap(), 0, si.lpAttributeList);
-      final err = win32.HRESULT_FROM_WIN32(win32.GetLastError());
-      print('GetLastError $err.');
-      return null;
-    }
+//     ret = win32.UpdateProcThreadAttribute(
+//         si.ref.lpAttributeList,
+//         0,
+//         win32.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+//         Pointer.fromAddress(_hPC.value),
+//         sizeOf<IntPtr>(),
+//         nullptr,
+//         nullptr);
 
-    ret = win32.UpdateProcThreadAttribute(
-        si.lpAttributeList,
-        0,
-        win32.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-        Pointer.fromAddress(_hPC.value),
-        sizeOf<IntPtr>(),
-        nullptr,
-        nullptr);
+//     print('UpdateProcThreadAttribute $ret.');
 
-    print('UpdateProcThreadAttribute $ret.');
+//     // final childApplication = 'C:\\windows\\system32\\cmd.exe';
 
-    // final childApplication = 'C:\\windows\\system32\\cmd.exe';
+//     final pi = calloc<win32.PROCESS_INFORMATION>();
 
-    final pi = win32.PROCESS_INFORMATION.allocate();
+//     ret = win32.CreateProcess(
+//         nullptr,
+//         executable.toNativeUtf16(),
+//         nullptr,
+//         nullptr,
+//         win32.FALSE,
+//         win32.EXTENDED_STARTUPINFO_PRESENT,
+//         nullptr,
+//         nullptr,
+//         si.cast(),
+//         pi);
 
-    ret = win32.CreateProcess(
-        nullptr,
-        Utf16.toUtf16(executable),
-        nullptr,
-        nullptr,
-        win32.FALSE,
-        win32.EXTENDED_STARTUPINFO_PRESENT,
-        nullptr,
-        nullptr,
-        si.addressOf,
-        pi.addressOf);
+//     print('CreateProcess $ret.');
 
-    print('CreateProcess $ret.');
+//     if (ret == 0) {
+//       print('CreateProcess failed.');
+//       return null;
+//     }
 
-    if (ret == 0) {
-      print('CreateProcess failed.');
-      return null;
-    }
+//     print('hProcess ${pi.ref.hProcess}.');
 
-    print('hProcess ${pi.hProcess}.');
+//     return WinProc(pi.ref.hProcess, _hPC.value);
+//   }
+// }
 
-    return WinProc(pi.hProcess, _hPC.value);
-  }
-}
+// String? rawRead(int hFile) {
+//   print('rawRead');
+//   const bufsize = 4096;
+//   final buffer = calloc<Int8>(bufsize + 1);
+//   final readlen = calloc<Uint32>();
 
-String rawRead(int hFile) {
-  print('rawRead');
-  const bufsize = 4096;
-  final buffer = allocate<Int8>(count: bufsize + 1);
-  final readlen = allocate<Uint32>();
+//   win32.ReadFile(hFile, buffer, bufsize, readlen, nullptr);
 
-  win32.ReadFile(hFile, buffer, bufsize, readlen, nullptr);
+//   print('ReadFile done');
+//   print('readlen ${readlen.value}');
 
-  print('ReadFile done');
-  print('readlen ${readlen.value}');
+//   if (readlen.value == -1) {
+//     return null;
+//   } else {
+//     buffer.elementAt(readlen.value).value = 0;
+//     final result = buffer.cast<Utf8>().toDartString();
 
-  if (readlen.value == -1) {
-    return null;
-  } else {
-    buffer.elementAt(readlen.value).value = 0;
-    final result = Utf8.fromUtf8(buffer.cast());
+//     calloc.free(readlen);
+//     calloc.free(buffer);
 
-    free(readlen);
-    free(buffer);
-
-    return result;
-  }
-}
+//     return result;
+//   }
+// }
