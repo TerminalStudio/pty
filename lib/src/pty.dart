@@ -42,6 +42,7 @@ class PseudoTerminal {
       _in.close();
       _out.close();
       timer.cancel();
+      return;
     }
 
     var data = _core.readNonBlocking();
