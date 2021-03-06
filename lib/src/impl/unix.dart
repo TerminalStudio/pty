@@ -32,11 +32,11 @@ class PtyCoreUnix implements PtyCore {
     final ptm = unix.open(dev, consts.O_RDWR | consts.O_CLOEXEC);
 
     if (unix.grantpt(ptm) != 0) {
-      throw PtyError('grantpt failed.');
+      throw PtyException('grantpt failed.');
     }
 
     if (unix.unlockpt(ptm) != 0) {
-      throw PtyError('unlockpt failed.');
+      throw PtyException('unlockpt failed.');
     }
 
     final tios = calloc<termios>();
@@ -48,7 +48,7 @@ class PtyCoreUnix implements PtyCore {
 
     final pid = unix.fork();
     if (pid < 0) {
-      throw PtyError('fork failed.');
+      throw PtyException('fork failed.');
     } else if (pid > 0) {
       // call setsid() to make parent process become session leader.
       unix.setsid();
@@ -67,22 +67,22 @@ class PtyCoreUnix implements PtyCore {
     unix.close(ptm);
 
     if (pts < 0) {
-      throw PtyError('open pts failed.');
+      throw PtyException('open pts failed.');
     }
 
     // redirect stdin
     if (unix.dup2(pts, 0) == -1) {
-      throw PtyError('fdup2(pts, 0) ailed.');
+      throw PtyException('fdup2(pts, 0) ailed.');
     }
 
     // redirect stdout
     if (unix.dup2(pts, 1) == -1) {
-      throw PtyError('fdup2(pts, 1) ailed.');
+      throw PtyException('fdup2(pts, 1) ailed.');
     }
 
     // redirect stderr
     if (unix.dup2(pts, 2) == -1) {
-      throw PtyError('fdup2(pts, 2) ailed.');
+      throw PtyException('fdup2(pts, 2) ailed.');
     }
 
     unix.close(pts);
@@ -109,7 +109,7 @@ class PtyCoreUnix implements PtyCore {
 
     unix.execvp(executable.toNativeUtf8(), argv);
 
-    throw PtyError('unreachable');
+    throw PtyException('unreachable');
   }
 
   PtyCoreUnix._(this._pid, this._ptm) {
@@ -171,10 +171,10 @@ class PtyCoreUnix implements PtyCore {
     }
   }
 
-  @override
-  int get pid {
-    return _pid;
-  }
+  // @override
+  // int get pid {
+  //   return _pid;
+  // }
 
   @override
   void write(List<int> data) {

@@ -9,7 +9,7 @@ abstract class PtyCore {
 
   void resize(int width, int height);
 
-  int get pid;
+  // int get pid;
 
   void write(List<int> data);
 }

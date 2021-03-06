@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:pty/src/impl/unix.dart';
+import 'package:pty/src/impl/windows.dart';
 import 'package:pty/src/pty_core.dart';
 
 class PseudoTerminal {
@@ -15,6 +16,17 @@ class PseudoTerminal {
     // bool runInShell = false,
     // ProcessStartMode mode = ProcessStartMode.normal,
   }) {
+    if (Platform.isWindows) {
+      final core = PtyCoreWindows.start(
+        executable,
+        arguments,
+        workingDirectory: workingDirectory,
+        environment: environment,
+      );
+
+      return PseudoTerminal._(core);
+    }
+
     final core = PtyCoreUnix.start(
       executable,
       arguments,
@@ -60,9 +72,9 @@ class PseudoTerminal {
     return _exitCode.future;
   }
 
-  int get pid {
-    return _core.pid;
-  }
+  // int get pid {
+  //   return _core.pid;
+  // }
 
   void write(String input) {
     final data = utf8.encode(input);

@@ -1,5 +1,5 @@
-class PtyError {
-  PtyError(this.message);
+class PtyException implements Exception {
+  PtyException(this.message);
 
   final String message;
 

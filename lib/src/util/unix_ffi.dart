@@ -4,7 +4,8 @@ import 'package:ffi/ffi.dart';
 
 Unix? _unix;
 Unix get unix {
-  return _unix ?? Unix(DynamicLibrary.process());
+  _unix ??= Unix(DynamicLibrary.process());
+  return _unix!;
 }
 
 typedef _c_open = Int32 Function(Pointer<Utf8> __file, Int32 __oflag);
