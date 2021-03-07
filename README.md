@@ -12,10 +12,10 @@ Pty for Dart and Flutter. Provides the ability to create processes with pseudo t
 
 | **Platform**  | **JIT(Debug)** | **AOT(Release)** |
 | ------------- | :------------: | :--------------: |
-| **Windows**   |      WIP       |       WIP        |
-| **Linux x64** |     Crash      |      Passed      |
+| **Windows**   |     Crash      |      Passed      |
+| **Linux x64** |     Passed     |      Passed      |
 | **Linux x86** |   Not tested   |    Not tested    |
-| **macOS**     |   Not tested   |    Not tested    |
+| **macOS**     |     Passed     |      Passed      |
 
 ## Usage
 
@@ -25,20 +25,16 @@ A simple usage example:
 import 'package:pty/pty.dart';
 
 void main() async {
-  final pty = Pty();
+  final pty = PseudoTerminal.start('bash', []);
 
-  pty.resize(80, 25);
+  pty.write('ls\n');
 
-  final proc = pty.exec('vi');
+  pty.out.listen((data) {
+    print(data);
+  });
 
-  final data = await pty.read();
-  print(data.length);
-
-  proc.kill();
-
-  await proc.wait();
+  print(await pty.exitCode);
 }
-
 ```
 
 ## Features and bugs
