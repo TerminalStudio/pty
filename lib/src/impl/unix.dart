@@ -152,7 +152,7 @@ class PtyCoreUnix implements PtyCore {
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
-    return unix.kill(pid, consts.SIGKILL) == 0;
+    return unix.kill(_pid, consts.SIGKILL) == 0;
   }
 
   @override
