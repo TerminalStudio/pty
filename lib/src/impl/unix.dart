@@ -38,6 +38,9 @@ class PtyCoreUnix implements PtyCore {
     final pid = unix.forkpty(ptm, nullptr, nullptr, sz);
     calloc.free(sz);
 
+    final ptmVal = ptm.value;
+    calloc.free(ptm);
+
     if(pid < 0) {
       throw PtyException('fork failed.');
     }
@@ -70,8 +73,8 @@ class PtyCoreUnix implements PtyCore {
       unix.execve(executable.toNativeUtf8(), argv, env);
     } else {
       unix.setsid();
-      _setNonblock(ptm.value);
-      return PtyCoreUnix._(pid, ptm.value);
+      _setNonblock(ptmVal);
+      return PtyCoreUnix._(pid, ptmVal);
     }
 
     throw PtyException('unreachable');
