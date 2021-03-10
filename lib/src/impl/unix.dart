@@ -60,7 +60,7 @@ class PtyCoreUnix implements PtyCore {
 
       //build env
       final env = calloc<Pointer<Utf8>>(environment != null ? environment.length + 1 : 1);
-      env.elementAt(environment != null ? environment.length + 1 : 0).value = nullptr;
+      env.elementAt(environment != null ? environment.length : 0).value = nullptr;
       if(environment != null) {
         var cnt = 0;
         for (var entry in environment.entries) {
