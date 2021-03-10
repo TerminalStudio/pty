@@ -28,6 +28,27 @@ class PtyCoreUnix implements PtyCore {
     String? workingDirectory,
     Map<String, String>? environment,
   }) {
+
+    var effectiveEnv = <String, String>{};
+
+    effectiveEnv['TERM'] = 'xterm-256color';
+    // Without this, tools like "vi" produce sequences that are not UTF-8 friendly
+    effectiveEnv['LANG'] = 'en_US.UTF-8';
+
+    var envValuesToCopy = {'LOGNAME', 'USER', 'DISPLAY', 'LC_TYPE', 'HOME', 'PATH'};
+
+    for(var entry in Platform.environment.entries) {
+      if(envValuesToCopy.contains(entry.key)) {
+        effectiveEnv[entry.key] = entry.value;
+      }
+    }
+
+    if(environment != null) {
+      for(var entry in environment.entries) {
+        effectiveEnv[entry.key] = entry.value;
+      }
+    }
+
     final ptm = calloc<Int32>();
     ptm.value = -1;
 
@@ -59,21 +80,29 @@ class PtyCoreUnix implements PtyCore {
       }
 
       //build env
-      final env = calloc<Pointer<Utf8>>(environment != null ? environment.length + 1 : 1);
-      env.elementAt(environment != null ? environment.length : 0).value = nullptr;
-      if(environment != null) {
-        var cnt = 0;
-        for (var entry in environment.entries) {
-          final envVal = entry.key + "=" + entry.value;
-          env.elementAt(cnt).value = envVal.toNativeUtf8();
-          cnt++;
-        }
+      
+      final env = calloc<Pointer<Utf8>>(effectiveEnv.length + 1);
+      env.elementAt(effectiveEnv.length).value = nullptr;
+      var cnt = 0;
+      for (var entry in effectiveEnv.entries) {
+        final envVal = entry.key + '=' + entry.value;
+        env.elementAt(cnt).value = envVal.toNativeUtf8();
+        cnt++;
       }
 
       unix.execve(executable.toNativeUtf8(), argv, env);
     } else {
       unix.setsid();
+
       _setNonblock(ptmVal);
+
+      final tios = calloc<termios>();
+      unix.tcgetattr(ptmVal, tios);
+      tios.ref.c_iflag |= consts.IUTF8;
+      tios.ref.c_iflag &= ~(consts.IXON | consts.IXOFF);
+      unix.tcsetattr(ptmVal, consts.TCSANOW, tios);
+      calloc.free(tios);
+
       return PtyCoreUnix._(pid, ptmVal);
     }
 
