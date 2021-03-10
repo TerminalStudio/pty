@@ -95,14 +95,6 @@ class PtyCoreUnix implements PtyCore {
       unix.setsid();
 
       _setNonblock(ptmVal);
-
-      final tios = calloc<termios>();
-      unix.tcgetattr(ptmVal, tios);
-      tios.ref.c_iflag |= consts.IUTF8;
-      tios.ref.c_iflag &= ~(consts.IXON | consts.IXOFF);
-      unix.tcsetattr(ptmVal, consts.TCSANOW, tios);
-      calloc.free(tios);
-
       return PtyCoreUnix._(pid, ptmVal);
     }
 
