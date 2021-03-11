@@ -52,6 +52,31 @@ typedef _dart_execvp = int Function(
   Pointer<Pointer<Utf8>> __argv,
 );
 
+typedef _c_forkpty = Int32 Function(
+  Pointer<Int32> masterRef,
+  Pointer<Utf8> name,
+  Pointer<termios> termp,
+  Pointer<winsize> winp,
+);
+typedef _dart_forkpty = int Function(
+  Pointer<Int32> masterRef,
+  Pointer<Utf8> name,
+  Pointer<termios> termp,
+  Pointer<winsize> winp,
+);
+
+typedef _c_execve = Int32 Function(
+  Pointer<Utf8> __file,
+  Pointer<Pointer<Utf8>> __argv,
+  Pointer<Pointer<Utf8>> __envp,
+);
+typedef _dart_execve = int Function(
+  Pointer<Utf8> __file,
+  Pointer<Pointer<Utf8>> __argv,
+  Pointer<Pointer<Utf8>> __envp,
+);
+
+
 typedef _c_read = Int64 Function(Int32 _fd, Pointer<Void> _buf, Int32 _nbytes);
 typedef _dart_read = int Function(int _fd, Pointer<Void> _buf, int _nbytes);
 
@@ -118,6 +143,8 @@ class Unix {
     ptsname = lib.lookupFunction<_c_ptsname, _dart_ptsname>('ptsname');
     dup2 = lib.lookupFunction<_c_dup2, _dart_dup2>('dup2');
     execvp = lib.lookupFunction<_c_execvp, _dart_execvp>('execvp');
+    execve = lib.lookupFunction<_c_execve, _dart_execve>('execve');
+    forkpty = lib.lookupFunction<_c_forkpty, _dart_forkpty>('forkpty');
     read = lib.lookupFunction<_c_read, _dart_read>('read');
     waitpid = lib.lookupFunction<_c_waitpid, _dart_waitpid>('waitpid');
     kill = lib.lookupFunction<_c_kill, _dart_kill>('kill');
@@ -144,6 +171,8 @@ class Unix {
   late final _dart_ptsname ptsname;
   late final _dart_dup2 dup2;
   late final _dart_execvp execvp;
+  late final _dart_execve execve;
+  late final _dart_forkpty forkpty;
   late final _dart_read read;
   late final _dart_waitpid waitpid;
   late final _dart_kill kill;
