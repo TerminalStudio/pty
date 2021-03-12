@@ -4,20 +4,20 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:pty/src/pty_core.dart';
 import 'package:pty/src/pty_error.dart';
-import 'package:pty/src/util/win32_additional.dart';
+// import 'package:pty/src/util/win32_additional.dart';
 import 'package:win32/win32.dart' as win32;
 
 class _NamedPipe {
   _NamedPipe({bool nowait = false}) {
     final pipeName = r'\\.\pipe\mypipe'.toNativeUtf16();
 
-    final waitMode = nowait ? win32a.PIPE_NOWAIT : win32a.PIPE_WAIT;
+    final waitMode = nowait ? win32.PIPE_NOWAIT : win32.PIPE_WAIT;
 
-    final namedPipe = win32a.CreateNamedPipe(
+    final namedPipe = win32.CreateNamedPipe(
       pipeName,
-      win32a.PIPE_ACCESS_DUPLEX,
-      waitMode | win32a.PIPE_READMODE_MESSAGE | win32a.PIPE_TYPE_MESSAGE,
-      win32a.PIPE_UNLIMITED_INSTANCES,
+      win32.PIPE_ACCESS_DUPLEX,
+      waitMode | win32.PIPE_READMODE_MESSAGE | win32.PIPE_TYPE_MESSAGE,
+      win32.PIPE_UNLIMITED_INSTANCES,
       4096,
       4096,
       0,
@@ -99,11 +99,11 @@ class PtyCoreWindows implements PtyCore {
     si.ref.StartupInfo.cb = sizeOf<win32.STARTUPINFOEX>();
 
     final bytesRequired = calloc<IntPtr>();
-    win32.InitializeProcThreadAttributeList(nullptr, 1, 0, bytesRequired);
+    win32.InitializeProcThreadAttributeList(nullptr.address, 1, 0, bytesRequired);
     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
 
     var ret = win32.InitializeProcThreadAttributeList(
-        si.ref.lpAttributeList, 1, 0, bytesRequired);
+        si.ref.lpAttributeList.address, 1, 0, bytesRequired);
 
     if (ret == win32.FALSE) {
       throw PtyException('InitializeProcThreadAttributeList failed.');
@@ -111,7 +111,7 @@ class PtyCoreWindows implements PtyCore {
 
     // use pty
     ret = win32.UpdateProcThreadAttribute(
-      si.ref.lpAttributeList,
+      si.ref.lpAttributeList.address,
       0,
       win32.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
       Pointer.fromAddress(_hPty.value),
@@ -187,7 +187,7 @@ class PtyCoreWindows implements PtyCore {
   @override
   int? exitCodeNonBlocking() {
     final exitCodePtr = calloc<Uint32>();
-    final ret = win32a.GetExitCodeProcess(_hProcess, exitCodePtr);
+    final ret = win32.GetExitCodeProcess(_hProcess, exitCodePtr);
 
     final exitCode = exitCodePtr.value;
     calloc.free(exitCodePtr);
@@ -202,7 +202,7 @@ class PtyCoreWindows implements PtyCore {
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
-    final ret = win32a.TerminateProcess(_hProcess, nullptr);
+    final ret = win32.TerminateProcess(_hProcess, nullptr.address);
     win32.ClosePseudoConsole(_hPty);
     return ret != 0;
   }
