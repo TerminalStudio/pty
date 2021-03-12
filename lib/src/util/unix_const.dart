@@ -1,6 +1,8 @@
 // ignore_for_file: annotate_overrides
 
-final consts = BsdConst();
+import 'dart:io';
+
+final consts = Platform.isLinux ? LinuxConst() : BsdConst();
 
 class LinuxConst implements BsdConst {
   final IUTF8 = 16384;
