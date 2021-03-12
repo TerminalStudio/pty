@@ -9,12 +9,13 @@ import 'package:win32/win32.dart' as win32;
 
 class _NamedPipe {
   _NamedPipe({bool nowait = false}) {
-    final pipeName = r'\\.\pipe\mypipe'.toNativeUtf16();
+    final pipeName = r'\\.\pipe\dart-pty-pipe';
+    final pPipeName = pipeName.toNativeUtf16();
 
     final waitMode = nowait ? win32.PIPE_NOWAIT : win32.PIPE_WAIT;
 
     final namedPipe = win32.CreateNamedPipe(
-      pipeName,
+      pPipeName,
       win32.PIPE_ACCESS_DUPLEX,
       waitMode | win32.PIPE_READMODE_MESSAGE | win32.PIPE_TYPE_MESSAGE,
       win32.PIPE_UNLIMITED_INSTANCES,
@@ -29,8 +30,7 @@ class _NamedPipe {
     }
 
     final namedPipeClient = win32.CreateFile(
-      pipeName,
-      // r'.\out.poland'.toNativeUtf16(),
+      pPipeName,
       win32.GENERIC_READ | win32.GENERIC_WRITE,
       0, // no sharing
       nullptr, // default security attributes
@@ -38,6 +38,7 @@ class _NamedPipe {
       0, // default attributes
       0, // no template file
     );
+    calloc.free(pPipeName);
 
     if (namedPipeClient == win32.INVALID_HANDLE_VALUE) {
       throw PtyException('CreateFile on named pipe failed');
@@ -99,7 +100,8 @@ class PtyCoreWindows implements PtyCore {
     si.ref.StartupInfo.cb = sizeOf<win32.STARTUPINFOEX>();
 
     final bytesRequired = calloc<IntPtr>();
-    win32.InitializeProcThreadAttributeList(nullptr.address, 1, 0, bytesRequired);
+    win32.InitializeProcThreadAttributeList(
+        nullptr.address, 1, 0, bytesRequired);
     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
 
     var ret = win32.InitializeProcThreadAttributeList(
@@ -124,22 +126,65 @@ class PtyCoreWindows implements PtyCore {
       throw PtyException('UpdateProcThreadAttribute failed.');
     }
 
+    // build command line
+    final commandBuffer = StringBuffer();
+    commandBuffer.write(executable);
+    if (arguments.isNotEmpty) {
+      for (var argument in arguments) {
+        commandBuffer.write(' ');
+        commandBuffer.write(argument);
+      }
+    }
+    final pCommandLine = commandBuffer.toString().toNativeUtf16();
+
+    // build current directory
+    Pointer<Utf16> pCurrentDirectory = nullptr;
+    if (workingDirectory != null) {
+      pCurrentDirectory = workingDirectory.toNativeUtf16();
+    }
+
+    // build environment
+    Pointer<Utf16> pEnvironment = nullptr;
+    if (environment != null && environment.isNotEmpty) {
+      final buffer = StringBuffer();
+
+      for (var env in environment.entries) {
+        buffer.write(env.key);
+        buffer.write('=');
+        buffer.write(env.value);
+        buffer.write('\u0000');
+      }
+
+      pEnvironment = buffer.toString().toNativeUtf16();
+    }
+
     // start the process.
     final pi = calloc<win32.PROCESS_INFORMATION>();
     ret = win32.CreateProcess(
       nullptr,
-      executable.toNativeUtf16(),
-      // 'cmd.exe'.toNativeUtf16(),
-      // executable.toNativeUtf16(),
+      pCommandLine,
       nullptr,
       nullptr,
       win32.FALSE,
-      win32.EXTENDED_STARTUPINFO_PRESENT,
+      win32.EXTENDED_STARTUPINFO_PRESENT | win32.CREATE_UNICODE_ENVIRONMENT,
+      // pass pEnvironment here causes crash
+      // TODO: fix this
+      // pEnvironment,
       nullptr,
-      nullptr,
+      pCurrentDirectory,
       si.cast(),
       pi,
     );
+
+    calloc.free(pCommandLine);
+
+    if (pCurrentDirectory != nullptr) {
+      calloc.free(pCurrentDirectory);
+    }
+
+    if (pEnvironment != nullptr) {
+      calloc.free(pEnvironment);
+    }
 
     if (ret == 0) {
       throw PtyException('CreateProcess failed: ${win32.GetLastError()}');
