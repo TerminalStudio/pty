@@ -1,10 +1,10 @@
 # pty
 
-<p>
-    <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/TerminalStudio/pty">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/TerminalStudio/pty">
-    <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/TerminalStudio/pty">
-</p>
+
+[![Dart](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml/badge.svg)](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml)
+<img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/TerminalStudio/pty">
+<img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/TerminalStudio/pty">
+<img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/TerminalStudio/pty">
 
 Pty for Dart and Flutter. Provides the ability to create processes with pseudo terminal file descriptors.
 
