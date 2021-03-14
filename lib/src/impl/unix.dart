@@ -12,8 +12,6 @@ void _setNonblock(int fd) {
 
   flag |= consts.O_NONBLOCK;
 
-  print('flag $flag');
-
   final ret = unix.fcntl3(fd, consts.F_SETFL, flag);
   if (ret == -1) {
     unix.perror(nullptr);
@@ -28,7 +26,6 @@ class PtyCoreUnix implements PtyCore {
     String? workingDirectory,
     Map<String, String>? environment,
   }) {
-
     var effectiveEnv = <String, String>{};
 
     effectiveEnv['TERM'] = 'xterm-256color';
@@ -37,35 +34,34 @@ class PtyCoreUnix implements PtyCore {
 
     var envValuesToCopy = ['LOGNAME', 'USER', 'DISPLAY', 'LC_TYPE', 'HOME'];
 
-    for(var entry in Platform.environment.entries) {
-      if(envValuesToCopy.contains(entry.key)) {
+    for (var entry in Platform.environment.entries) {
+      if (envValuesToCopy.contains(entry.key)) {
         effectiveEnv[entry.key] = entry.value;
       }
     }
 
-    if(environment != null) {
-      for(var entry in environment.entries) {
+    if (environment != null) {
+      for (var entry in environment.entries) {
         effectiveEnv[entry.key] = entry.value;
       }
     }
 
-    final ptm = calloc<Int32>();
-    ptm.value = -1;
+    final pPtm = calloc<Int32>();
+    pPtm.value = -1;
 
     final sz = calloc<winsize>();
     sz.ref.ws_col = 80;
     sz.ref.ws_row = 20;
 
-    final pid = unix.forkpty(ptm, nullptr, nullptr, sz);
+    final pid = unix.forkpty(pPtm, nullptr, nullptr, sz);
     calloc.free(sz);
 
-    final ptmVal = ptm.value;
-    calloc.free(ptm);
+    var ptm = pPtm.value;
+    calloc.free(pPtm);
 
-    if(pid < 0) {
+    if (pid < 0) {
       throw PtyException('fork failed.');
-    }
-    else if(pid == 0) {
+    } else if (pid == 0) {
       // set working directory
       if (workingDirectory != null) {
         unix.chdir(workingDirectory.toNativeUtf8());
@@ -80,7 +76,6 @@ class PtyCoreUnix implements PtyCore {
       }
 
       //build env
-      
       final env = calloc<Pointer<Utf8>>(effectiveEnv.length + 1);
       env.elementAt(effectiveEnv.length).value = nullptr;
       var cnt = 0;
@@ -94,8 +89,8 @@ class PtyCoreUnix implements PtyCore {
     } else {
       unix.setsid();
 
-      _setNonblock(ptmVal);
-      return PtyCoreUnix._(pid, ptmVal);
+      _setNonblock(ptm);
+      return PtyCoreUnix._(pid, ptm);
     }
 
     throw PtyException('unreachable');
@@ -110,18 +105,17 @@ class PtyCoreUnix implements PtyCore {
   final int _ptm;
   // late final int _pts;
 
-  static const _bufferSize = 4096;
+  static const _bufferSize = 81920;
   final _buffer = calloc<Int8>(_bufferSize + 1);
 
   @override
-  String? readNonBlocking() {
+  List<int>? readNonBlocking() {
     final readlen = unix.read(_ptm, _buffer.cast(), _bufferSize);
 
-    if (readlen == -1) {
+    if (readlen <= 0) {
       return null;
     }
-
-    return _buffer.cast<Utf8>().toDartString(length: readlen);
+    return _buffer.cast<Uint8>().asTypedList(readlen);
   }
 
   @override

@@ -214,18 +214,22 @@ class PtyCoreWindows implements PtyCore {
   final _buffer = calloc<Int8>(_bufferSize + 1);
 
   @override
-  String? readNonBlocking() {
-    final readlen = calloc<Uint32>();
-    final ret =
-        win32.ReadFile(_outputReadSide, _buffer, _bufferSize, readlen, nullptr);
+  List<int>? readNonBlocking() {
+    final pReadlen = calloc<Uint32>();
+    final ret = win32.ReadFile(
+        _outputReadSide, _buffer, _bufferSize, pReadlen, nullptr);
+
+    final readlen = pReadlen.value;
+    calloc.free(pReadlen);
+
     if (ret == 0) {
       return null;
     }
 
-    if (readlen.value == -1) {
+    if (readlen <= 0) {
       return null;
     } else {
-      return _buffer.cast<Utf8>().toDartString(length: readlen.value);
+      return _buffer.cast<Uint8>().asTypedList(readlen);
     }
   }
 

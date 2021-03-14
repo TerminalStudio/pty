@@ -44,23 +44,27 @@ class PseudoTerminal {
   late final PtyCore _core;
 
   final _exitCode = Completer<int>();
-  final _in = StreamController<String>();
   final _out = StreamController<String>();
 
   void _poll(Timer timer) {
     final exit = _core.exitCodeNonBlocking();
     if (exit != null) {
       _exitCode.complete(exit);
-      _in.close();
       _out.close();
       timer.cancel();
       return;
     }
 
+    final buffer = StringBuffer();
+
     var data = _core.readNonBlocking();
     while (data != null) {
-      _out.add(data);
+      buffer.write(utf8.decode(data));
       data = _core.readNonBlocking();
+    }
+
+    if (buffer.isNotEmpty) {
+      _out.add(buffer.toString());
     }
   }
 
