@@ -3,6 +3,9 @@
 # Pty buffer size detect script
 # From: https://superuser.com/a/1452858
 
+# Results:
+# MacOS 11.2.3: pts write blocked after 1023 bytes (0 KiB)
+
 import os
 from pty import openpty
 from fcntl import fcntl, F_GETFL, F_SETFL
