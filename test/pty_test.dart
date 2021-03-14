@@ -18,7 +18,6 @@ void main() {
   //   expect(await pty.exitCode, equals(3));
   // }, timeout: Timeout.factor(0.3));
 
-
   // test('echo test', () async {
   //   final pty = PseudoTerminal.start(_getShell(), []);
   //   pty.write('echo hello world\n');

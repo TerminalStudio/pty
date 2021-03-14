@@ -76,7 +76,6 @@ typedef _dart_execve = int Function(
   Pointer<Pointer<Utf8>> __envp,
 );
 
-
 typedef _c_read = Int64 Function(Int32 _fd, Pointer<Void> _buf, Int32 _nbytes);
 typedef _dart_read = int Function(int _fd, Pointer<Void> _buf, int _nbytes);
 
