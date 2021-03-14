@@ -1,7 +1,6 @@
 # pty
 
 
-[![test](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml/badge.svg)](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml)
 <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/TerminalStudio/pty">
 <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/TerminalStudio/pty">
 <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/TerminalStudio/pty">
@@ -10,12 +9,15 @@ Pty for Dart and Flutter. Provides the ability to create processes with pseudo t
 
 ## Status
 
+[![test](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml/badge.svg)](https://github.com/TerminalStudio/pty/actions/workflows/dart.yml)
+
+
 | **Platform**  | **JIT(Debug)** | **AOT(Release)** |
 | ------------- | :------------: | :--------------: |
-| **Windows**   |     Crash      |      Passed      |
-| **Linux x64** |     Passed     |      Passed      |
+| **Windows**   |     Crash      |      Works       |
+| **Linux x64** |     Works      |      Works       |
 | **Linux x86** |   Not tested   |    Not tested    |
-| **macOS**     |     Passed     |      Passed      |
+| **macOS**     |     Works      |      Works       |
 
 ## Usage
 
