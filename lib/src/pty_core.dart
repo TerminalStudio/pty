@@ -1,7 +1,7 @@
 import 'dart:io';
 
 abstract class PtyCore {
-  String? readNonBlocking();
+  List<int>? readNonBlocking();
 
   int? exitCodeNonBlocking();
 

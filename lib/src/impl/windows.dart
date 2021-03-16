@@ -4,20 +4,21 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:pty/src/pty_core.dart';
 import 'package:pty/src/pty_error.dart';
-import 'package:pty/src/util/win32_additional.dart';
+// import 'package:pty/src/util/win32_additional.dart';
 import 'package:win32/win32.dart' as win32;
 
 class _NamedPipe {
   _NamedPipe({bool nowait = false}) {
-    final pipeName = r'\\.\pipe\mypipe'.toNativeUtf16();
+    final pipeName = r'\\.\pipe\dart-pty-pipe';
+    final pPipeName = pipeName.toNativeUtf16();
 
-    final waitMode = nowait ? win32a.PIPE_NOWAIT : win32a.PIPE_WAIT;
+    final waitMode = nowait ? win32.PIPE_NOWAIT : win32.PIPE_WAIT;
 
-    final namedPipe = win32a.CreateNamedPipe(
-      pipeName,
-      win32a.PIPE_ACCESS_DUPLEX,
-      waitMode | win32a.PIPE_READMODE_MESSAGE | win32a.PIPE_TYPE_MESSAGE,
-      win32a.PIPE_UNLIMITED_INSTANCES,
+    final namedPipe = win32.CreateNamedPipe(
+      pPipeName,
+      win32.PIPE_ACCESS_DUPLEX,
+      waitMode | win32.PIPE_READMODE_MESSAGE | win32.PIPE_TYPE_MESSAGE,
+      win32.PIPE_UNLIMITED_INSTANCES,
       4096,
       4096,
       0,
@@ -29,8 +30,7 @@ class _NamedPipe {
     }
 
     final namedPipeClient = win32.CreateFile(
-      pipeName,
-      // r'.\out.poland'.toNativeUtf16(),
+      pPipeName,
       win32.GENERIC_READ | win32.GENERIC_WRITE,
       0, // no sharing
       nullptr, // default security attributes
@@ -38,6 +38,7 @@ class _NamedPipe {
       0, // default attributes
       0, // no template file
     );
+    calloc.free(pPipeName);
 
     if (namedPipeClient == win32.INVALID_HANDLE_VALUE) {
       throw PtyException('CreateFile on named pipe failed');
@@ -99,11 +100,12 @@ class PtyCoreWindows implements PtyCore {
     si.ref.StartupInfo.cb = sizeOf<win32.STARTUPINFOEX>();
 
     final bytesRequired = calloc<IntPtr>();
-    win32.InitializeProcThreadAttributeList(nullptr, 1, 0, bytesRequired);
+    win32.InitializeProcThreadAttributeList(
+        nullptr.address, 1, 0, bytesRequired);
     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
 
     var ret = win32.InitializeProcThreadAttributeList(
-        si.ref.lpAttributeList, 1, 0, bytesRequired);
+        si.ref.lpAttributeList.address, 1, 0, bytesRequired);
 
     if (ret == win32.FALSE) {
       throw PtyException('InitializeProcThreadAttributeList failed.');
@@ -111,7 +113,7 @@ class PtyCoreWindows implements PtyCore {
 
     // use pty
     ret = win32.UpdateProcThreadAttribute(
-      si.ref.lpAttributeList,
+      si.ref.lpAttributeList.address,
       0,
       win32.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
       Pointer.fromAddress(_hPty.value),
@@ -124,22 +126,65 @@ class PtyCoreWindows implements PtyCore {
       throw PtyException('UpdateProcThreadAttribute failed.');
     }
 
+    // build command line
+    final commandBuffer = StringBuffer();
+    commandBuffer.write(executable);
+    if (arguments.isNotEmpty) {
+      for (var argument in arguments) {
+        commandBuffer.write(' ');
+        commandBuffer.write(argument);
+      }
+    }
+    final pCommandLine = commandBuffer.toString().toNativeUtf16();
+
+    // build current directory
+    Pointer<Utf16> pCurrentDirectory = nullptr;
+    if (workingDirectory != null) {
+      pCurrentDirectory = workingDirectory.toNativeUtf16();
+    }
+
+    // build environment
+    Pointer<Utf16> pEnvironment = nullptr;
+    if (environment != null && environment.isNotEmpty) {
+      final buffer = StringBuffer();
+
+      for (var env in environment.entries) {
+        buffer.write(env.key);
+        buffer.write('=');
+        buffer.write(env.value);
+        buffer.write('\u0000');
+      }
+
+      pEnvironment = buffer.toString().toNativeUtf16();
+    }
+
     // start the process.
     final pi = calloc<win32.PROCESS_INFORMATION>();
     ret = win32.CreateProcess(
       nullptr,
-      executable.toNativeUtf16(),
-      // 'cmd.exe'.toNativeUtf16(),
-      // executable.toNativeUtf16(),
+      pCommandLine,
       nullptr,
       nullptr,
       win32.FALSE,
-      win32.EXTENDED_STARTUPINFO_PRESENT,
+      win32.EXTENDED_STARTUPINFO_PRESENT | win32.CREATE_UNICODE_ENVIRONMENT,
+      // pass pEnvironment here causes crash
+      // TODO: fix this
+      // pEnvironment,
       nullptr,
-      nullptr,
+      pCurrentDirectory,
       si.cast(),
       pi,
     );
+
+    calloc.free(pCommandLine);
+
+    if (pCurrentDirectory != nullptr) {
+      calloc.free(pCurrentDirectory);
+    }
+
+    if (pEnvironment != nullptr) {
+      calloc.free(pEnvironment);
+    }
 
     if (ret == 0) {
       throw PtyException('CreateProcess failed: ${win32.GetLastError()}');
@@ -169,25 +214,29 @@ class PtyCoreWindows implements PtyCore {
   final _buffer = calloc<Int8>(_bufferSize + 1);
 
   @override
-  String? readNonBlocking() {
-    final readlen = calloc<Uint32>();
-    final ret =
-        win32.ReadFile(_outputReadSide, _buffer, _bufferSize, readlen, nullptr);
+  List<int>? readNonBlocking() {
+    final pReadlen = calloc<Uint32>();
+    final ret = win32.ReadFile(
+        _outputReadSide, _buffer, _bufferSize, pReadlen, nullptr);
+
+    final readlen = pReadlen.value;
+    calloc.free(pReadlen);
+
     if (ret == 0) {
       return null;
     }
 
-    if (readlen.value == -1) {
+    if (readlen <= 0) {
       return null;
     } else {
-      return _buffer.cast<Utf8>().toDartString(length: readlen.value);
+      return _buffer.cast<Uint8>().asTypedList(readlen);
     }
   }
 
   @override
   int? exitCodeNonBlocking() {
     final exitCodePtr = calloc<Uint32>();
-    final ret = win32a.GetExitCodeProcess(_hProcess, exitCodePtr);
+    final ret = win32.GetExitCodeProcess(_hProcess, exitCodePtr);
 
     final exitCode = exitCodePtr.value;
     calloc.free(exitCodePtr);
@@ -202,7 +251,7 @@ class PtyCoreWindows implements PtyCore {
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
-    final ret = win32a.TerminateProcess(_hProcess, nullptr);
+    final ret = win32.TerminateProcess(_hProcess, nullptr.address);
     win32.ClosePseudoConsole(_hPty);
     return ret != 0;
   }

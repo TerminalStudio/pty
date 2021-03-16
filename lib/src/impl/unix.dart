@@ -12,8 +12,6 @@ void _setNonblock(int fd) {
 
   flag |= consts.O_NONBLOCK;
 
-  print('flag $flag');
-
   final ret = unix.fcntl3(fd, consts.F_SETFL, flag);
   if (ret == -1) {
     unix.perror(nullptr);
@@ -28,86 +26,72 @@ class PtyCoreUnix implements PtyCore {
     String? workingDirectory,
     Map<String, String>? environment,
   }) {
-    final dev = '/dev/ptmx'.toNativeUtf8();
-    final ptm = unix.open(dev, consts.O_RDWR | consts.O_CLOEXEC);
+    var effectiveEnv = <String, String>{};
 
-    if (unix.grantpt(ptm) != 0) {
-      throw PtyException('grantpt failed.');
-    }
+    effectiveEnv['TERM'] = 'xterm-256color';
+    // Without this, tools like "vi" produce sequences that are not UTF-8 friendly
+    effectiveEnv['LANG'] = 'en_US.UTF-8';
 
-    if (unix.unlockpt(ptm) != 0) {
-      throw PtyException('unlockpt failed.');
-    }
+    var envValuesToCopy = ['LOGNAME', 'USER', 'DISPLAY', 'LC_TYPE', 'HOME'];
 
-    final tios = calloc<termios>();
-    unix.tcgetattr(ptm, tios);
-    tios.ref.c_iflag |= consts.IUTF8;
-    tios.ref.c_iflag &= ~(consts.IXON | consts.IXOFF);
-    unix.tcsetattr(ptm, consts.TCSANOW, tios);
-    calloc.free(tios);
-
-    final pid = unix.fork();
-    if (pid < 0) {
-      throw PtyException('fork failed.');
-    } else if (pid > 0) {
-      // call setsid() to make parent process become session leader.
-      unix.setsid();
-      _setNonblock(ptm);
-      return PtyCoreUnix._(pid, ptm);
-    }
-
-    // final signalsToUnblock = allocate<Uint64>();
-    // unistd.sigfillset(signalsToUnblock);
-    // unistd.sigprocmask(SIG_UNBLOCK, signalsToUnblock, nullptr);
-    // unistd.close(_ptm);
-
-    // open slave side of the pty
-    final devname = unix.ptsname(ptm);
-    final pts = unix.open(devname, consts.O_RDWR);
-    unix.close(ptm);
-
-    if (pts < 0) {
-      throw PtyException('open pts failed.');
-    }
-
-    // redirect stdin
-    if (unix.dup2(pts, 0) == -1) {
-      throw PtyException('fdup2(pts, 0) ailed.');
-    }
-
-    // redirect stdout
-    if (unix.dup2(pts, 1) == -1) {
-      throw PtyException('fdup2(pts, 1) ailed.');
-    }
-
-    // redirect stderr
-    if (unix.dup2(pts, 2) == -1) {
-      throw PtyException('fdup2(pts, 2) ailed.');
-    }
-
-    unix.close(pts);
-
-    // set working environment variables
-    if (environment != null) {
-      for (var env in environment.entries) {
-        unix.setenv(env.key.toNativeUtf8(), env.value.toNativeUtf8(), 1);
+    for (var entry in Platform.environment.entries) {
+      if (envValuesToCopy.contains(entry.key)) {
+        effectiveEnv[entry.key] = entry.value;
       }
     }
 
-    // set working directory
-    if (workingDirectory != null) {
-      unix.chdir(workingDirectory.toNativeUtf8());
+    if (environment != null) {
+      for (var entry in environment.entries) {
+        effectiveEnv[entry.key] = entry.value;
+      }
     }
 
-    // build argv
-    final argv = calloc<Pointer<Utf8>>(arguments.length + 2);
-    argv.elementAt(0).value = executable.toNativeUtf8();
-    argv.elementAt(arguments.length + 1).value = nullptr;
-    for (var i = 0; i < arguments.length; i++) {
-      argv.elementAt(i + 1).value = arguments[i].toNativeUtf8();
-    }
+    final pPtm = calloc<Int32>();
+    pPtm.value = -1;
 
-    unix.execvp(executable.toNativeUtf8(), argv);
+    final sz = calloc<winsize>();
+    sz.ref.ws_col = 80;
+    sz.ref.ws_row = 20;
+
+    final pid = unix.forkpty(pPtm, nullptr, nullptr, sz);
+    calloc.free(sz);
+
+    var ptm = pPtm.value;
+    calloc.free(pPtm);
+
+    if (pid < 0) {
+      throw PtyException('fork failed.');
+    } else if (pid == 0) {
+      // set working directory
+      if (workingDirectory != null) {
+        unix.chdir(workingDirectory.toNativeUtf8());
+      }
+
+      // build argv
+      final argv = calloc<Pointer<Utf8>>(arguments.length + 2);
+      argv.elementAt(0).value = executable.toNativeUtf8();
+      argv.elementAt(arguments.length + 1).value = nullptr;
+      for (var i = 0; i < arguments.length; i++) {
+        argv.elementAt(i + 1).value = arguments[i].toNativeUtf8();
+      }
+
+      //build env
+      final env = calloc<Pointer<Utf8>>(effectiveEnv.length + 1);
+      env.elementAt(effectiveEnv.length).value = nullptr;
+      var cnt = 0;
+      for (var entry in effectiveEnv.entries) {
+        final envVal = '${entry.key}=${entry.value}';
+        env.elementAt(cnt).value = envVal.toNativeUtf8();
+        cnt++;
+      }
+
+      unix.execve(executable.toNativeUtf8(), argv, env);
+    } else {
+      unix.setsid();
+
+      _setNonblock(ptm);
+      return PtyCoreUnix._(pid, ptm);
+    }
 
     throw PtyException('unreachable');
   }
@@ -121,18 +105,17 @@ class PtyCoreUnix implements PtyCore {
   final int _ptm;
   // late final int _pts;
 
-  static const _bufferSize = 4096;
+  static const _bufferSize = 81920;
   final _buffer = calloc<Int8>(_bufferSize + 1);
 
   @override
-  String? readNonBlocking() {
+  List<int>? readNonBlocking() {
     final readlen = unix.read(_ptm, _buffer.cast(), _bufferSize);
 
-    if (readlen == -1) {
+    if (readlen <= 0) {
       return null;
     }
-
-    return _buffer.cast<Utf8>().toDartString(length: readlen);
+    return _buffer.cast<Uint8>().asTypedList(readlen);
   }
 
   @override
