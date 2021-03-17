@@ -32,7 +32,14 @@ class PtyCoreUnix implements PtyCore {
     // Without this, tools like "vi" produce sequences that are not UTF-8 friendly
     effectiveEnv['LANG'] = 'en_US.UTF-8';
 
-    var envValuesToCopy = ['LOGNAME', 'USER', 'DISPLAY', 'LC_TYPE', 'HOME', 'PATH'];
+    var envValuesToCopy = [
+      'LOGNAME',
+      'USER',
+      'DISPLAY',
+      'LC_TYPE',
+      'HOME',
+      'PATH'
+    ];
 
     for (var entry in Platform.environment.entries) {
       if (envValuesToCopy.contains(entry.key)) {
