@@ -8,7 +8,7 @@ void main() {
     final pty = PseudoTerminal.start(_getShell(), []);
     pty.kill();
     await pty.exitCode;
-  }, timeout: Timeout.factor(1));
+  }, timeout: Timeout.factor(0.3));
 
   // on windows PseudoTerminal only works in Flutter release mode..
 
