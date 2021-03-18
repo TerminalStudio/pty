@@ -28,8 +28,8 @@ class PseudoTerminal {
     }
 
     //add '-l' as argument for the shell to perform a login
-    arguments = List<String>.generate(arguments.length + 1,
-        (index) => index == 0 ? '-l' : arguments[index - 1]);
+    // arguments = List<String>.generate(arguments.length + 1,
+    //     (index) => index == 0 ? '-l' : arguments[index - 1]);
 
     final core = PtyCoreUnix.start(
       executable,
