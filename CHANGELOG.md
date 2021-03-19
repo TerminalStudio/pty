@@ -1,3 +1,7 @@
+## 0.2.1-pre
+
+- Bugfix: path error macos zsh [#4](https://github.com/TerminalStudio/pty/pull/4), thanks [@devmil](https://github.com/devmil)
+
 ## 0.2.0-pre
 
 - Using forkpty to set up the pty connection [#2](https://github.com/TerminalStudio/pty/pull/2), thanks [@devmil](https://github.com/devmil)
