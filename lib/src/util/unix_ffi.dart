@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
@@ -130,6 +131,9 @@ typedef _dart_chdir = int Function(Pointer<Utf8> __path);
 
 class Unix {
   Unix(DynamicLibrary lib) {
+    final utilsLib =
+        Platform.isLinux ? DynamicLibrary.open('libutil.so') : null;
+
     errno = lib.lookup<Int32>('errno');
 
     open = lib.lookupFunction<_c_open, _dart_open>('open');
@@ -143,7 +147,6 @@ class Unix {
     dup2 = lib.lookupFunction<_c_dup2, _dart_dup2>('dup2');
     execvp = lib.lookupFunction<_c_execvp, _dart_execvp>('execvp');
     execve = lib.lookupFunction<_c_execve, _dart_execve>('execve');
-    forkpty = lib.lookupFunction<_c_forkpty, _dart_forkpty>('forkpty');
     read = lib.lookupFunction<_c_read, _dart_read>('read');
     waitpid = lib.lookupFunction<_c_waitpid, _dart_waitpid>('waitpid');
     kill = lib.lookupFunction<_c_kill, _dart_kill>('kill');
@@ -156,6 +159,11 @@ class Unix {
     putenv = lib.lookupFunction<_c_putenv, _dart_putenv>('putenv');
     setenv = lib.lookupFunction<_c_setenv, _dart_setenv>('setenv');
     chdir = lib.lookupFunction<_c_chdir, _dart_chdir>('chdir');
+    if (utilsLib != null) {
+      forkpty = utilsLib.lookupFunction<_c_forkpty, _dart_forkpty>('forkpty');
+    } else {
+      forkpty = lib.lookupFunction<_c_forkpty, _dart_forkpty>('forkpty');
+    }
   }
 
   late final Pointer<Int32> errno;
