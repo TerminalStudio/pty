@@ -1,9 +1,13 @@
 import 'dart:io';
 
+import 'dart:typed_data';
+
 abstract class PtyCore {
-  List<int>? readNonBlocking();
+  Uint8List? read();
 
   int? exitCodeNonBlocking();
+
+  int exitCodeBlocking();
 
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]);
 

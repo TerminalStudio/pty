@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:pty/src/pty_core.dart';
@@ -58,6 +59,7 @@ class PtyCoreWindows implements PtyCore {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool blocking = false,
   }) {
     // create input pipe
     final hReadPipe = calloc<IntPtr>();
@@ -70,7 +72,7 @@ class PtyCoreWindows implements PtyCore {
     final inputReadSide = hReadPipe.value;
 
     // create output pipe
-    final pipe1 = _NamedPipe(nowait: true);
+    final pipe1 = _NamedPipe(nowait: !blocking);
     final outputReadSide = pipe1.readSide;
     final outputWriteSide = pipe1.writeSide;
 
@@ -214,7 +216,7 @@ class PtyCoreWindows implements PtyCore {
   final _buffer = calloc<Int8>(_bufferSize + 1);
 
   @override
-  List<int>? readNonBlocking() {
+  Uint8List? read() {
     final pReadlen = calloc<Uint32>();
     final ret = win32.ReadFile(
         _outputReadSide, _buffer, _bufferSize, pReadlen, nullptr);
@@ -247,6 +249,16 @@ class PtyCoreWindows implements PtyCore {
     }
 
     return exitCode;
+  }
+
+  @override
+  int exitCodeBlocking() {
+    const n = 1;
+    final pid = calloc<IntPtr>(n);
+    final infinite = 0xFFFFFFFF;
+    pid.elementAt(0).value = _hProcess;
+    win32.MsgWaitForMultipleObjects(n, pid, 1, infinite, win32.QS_ALLEVENTS);
+    return pid.elementAt(0).value;
   }
 
   @override

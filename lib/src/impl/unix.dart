@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:pty/src/pty_core.dart';
@@ -25,6 +26,7 @@ class PtyCoreUnix implements PtyCore {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool blocking = false,
   }) {
     var effectiveEnv = <String, String>{};
 
@@ -96,7 +98,10 @@ class PtyCoreUnix implements PtyCore {
     } else {
       unix.setsid();
 
-      _setNonblock(ptm);
+      if (!blocking) {
+        _setNonblock(ptm);
+      }
+
       return PtyCoreUnix._(pid, ptm);
     }
 
@@ -113,16 +118,18 @@ class PtyCoreUnix implements PtyCore {
   // late final int _pts;
 
   static const _bufferSize = 81920;
-  final _buffer = calloc<Int8>(_bufferSize + 1);
+  final _buffer = calloc<Int8>(_bufferSize + 1).address;
 
   @override
-  List<int>? readNonBlocking() {
-    final readlen = unix.read(_ptm, _buffer.cast(), _bufferSize);
+  Uint8List? read() {
+    final buffer = Pointer.fromAddress(_buffer);
+    final readlen = unix.read(_ptm, buffer.cast(), _bufferSize);
 
     if (readlen <= 0) {
       return null;
     }
-    return _buffer.cast<Uint8>().asTypedList(readlen);
+
+    return buffer.cast<Uint8>().asTypedList(readlen);
   }
 
   @override
@@ -136,6 +143,17 @@ class PtyCoreUnix implements PtyCore {
     if (pid == 0) {
       return null;
     }
+
+    return status;
+  }
+
+  @override
+  int exitCodeBlocking() {
+    final statusPointer = calloc<Int32>();
+    unix.waitpid(_pid, statusPointer, 0);
+
+    final status = statusPointer.value;
+    calloc.free(statusPointer);
 
     return status;
   }
