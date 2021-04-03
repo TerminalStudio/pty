@@ -116,13 +116,20 @@ void _waitForExitCode(_IsolateArgs<PtyCore> ctx) async {
 }
 
 void _readUntilExit(_IsolateArgs<PtyCore> ctx) async {
+  // set [sync] to true because PtyCore.read() is blocking and prevents the
+  // event loop from working.
+  final input = StreamController<List<int>>(sync: true);
+
+  input.stream.transform(utf8.decoder).listen(ctx.sendPort.send);
+
   while (true) {
     final data = ctx.arg.read();
+
     if (data == null) {
+      await input.close();
       break;
     }
 
-    final str = utf8.decode(data);
-    ctx.sendPort.send(str);
+    input.sink.add(data);
   }
 }
