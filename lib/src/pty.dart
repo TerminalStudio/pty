@@ -41,6 +41,7 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
 
   final _exitCode = Completer<int>();
   final _out = StreamController<String>();
+  final _rawDataBuffer = List<int>.empty(growable: true);
 
   void _poll(Timer timer) {
     final exit = _core.exitCodeNonBlocking();
@@ -51,18 +52,27 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
       return;
     }
 
-    final buffer = StringBuffer();
+    var receivedSomething = false;
 
     var data = _core.read();
     while (data != null) {
-      // TODO: handle Unhandled Exception: FormatException: Unfinished UTF-8
-      // octet sequence (at offset 1024)
-      buffer.write(utf8.decode(data));
+      receivedSomething = true;
+      _rawDataBuffer.addAll(data);
       data = _core.read();
     }
 
-    if (buffer.isNotEmpty) {
-      _out.add(buffer.toString());
+    if(receivedSomething && _rawDataBuffer.isNotEmpty) {
+      try {
+        final strContent = utf8.decode(_rawDataBuffer);
+        _rawDataBuffer.clear();
+        _out.add(strContent);
+      }
+      on FormatException catch(ex) {
+        // FormatException is thrown when the data contains incomplete
+        // UTF-8 byte sequences.
+        // int this case we do nothing and wait for the next chunk of data
+        // to arrive
+      }
     }
   }
 
