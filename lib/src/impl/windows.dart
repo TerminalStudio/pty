@@ -213,13 +213,14 @@ class PtyCoreWindows implements PtyCore {
   final int _hProcess;
 
   static const _bufferSize = 4096;
-  final _buffer = calloc<Int8>(_bufferSize + 1);
+  final _buffer = calloc<Int8>(_bufferSize + 1).address;
 
   @override
   Uint8List? read() {
     final pReadlen = calloc<Uint32>();
+    final buffer = Pointer.fromAddress(_buffer);
     final ret = win32.ReadFile(
-        _outputReadSide, _buffer, _bufferSize, pReadlen, nullptr);
+        _outputReadSide, buffer, _bufferSize, pReadlen, nullptr);
 
     final readlen = pReadlen.value;
     calloc.free(pReadlen);
@@ -231,7 +232,7 @@ class PtyCoreWindows implements PtyCore {
     if (readlen <= 0) {
       return null;
     } else {
-      return _buffer.cast<Uint8>().asTypedList(readlen);
+      return buffer.cast<Uint8>().asTypedList(readlen);
     }
   }
 
