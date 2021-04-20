@@ -35,13 +35,22 @@ abstract class BasePseudoTerminal implements PseudoTerminal {
 /// A polling based PseudoTerminal implementation. Mainly used in flutter debug
 /// mode to make hot reload work. The underlying PtyCore must be non-blocking.
 class PollingPseudoTerminal extends BasePseudoTerminal {
-  PollingPseudoTerminal(PtyCore _core) : super(_core) {
-    Timer.periodic(Duration(milliseconds: 15), _poll);
-  }
+  PollingPseudoTerminal(PtyCore _core) : super(_core);
 
-  final _exitCode = Completer<int>();
-  final _out = StreamController<String>();
+  //initialize them late to avoid having any closures in the instance
+  //so that this PollingPseudoTerminal can be passed to an Isolate
+  late Completer<int> _exitCode;
+  late StreamController<String> _out;
   final _rawDataBuffer = List<int>.empty(growable: true);
+  bool _initialized = false;
+
+  @override
+  void init() {
+    _exitCode = Completer<int>();
+    _out = StreamController<String>();
+    _initialized = true;
+    Timer.periodic(Duration(milliseconds: 1), _poll);
+  }
 
   void _poll(Timer timer) {
     final exit = _core.exitCodeNonBlocking();
@@ -60,14 +69,15 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
       _rawDataBuffer.addAll(data);
       data = _core.read();
     }
-
-    if(receivedSomething && _rawDataBuffer.isNotEmpty) {
+    if (!_initialized) {
+      return;
+    }
+    if (receivedSomething && _rawDataBuffer.isNotEmpty) {
       try {
         final strContent = utf8.decode(_rawDataBuffer);
         _rawDataBuffer.clear();
         _out.add(strContent);
-      }
-      on FormatException catch(ex) {
+      } on FormatException catch (ex) {
         // FormatException is thrown when the data contains incomplete
         // UTF-8 byte sequences.
         // int this case we do nothing and wait for the next chunk of data
@@ -97,6 +107,9 @@ class BlockingPseudoTerminal extends BasePseudoTerminal {
     Isolate.spawn(_readUntilExit, _IsolateArgs(receivePort.sendPort, _core));
     out = receivePort.cast();
   }
+
+  @override
+  void init() {}
 
   @override
   Future<int> get exitCode async {

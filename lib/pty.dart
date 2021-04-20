@@ -54,6 +54,7 @@ abstract class PseudoTerminal {
     }
   }
 
+  void init();
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]);
 
   Future<int> get exitCode;
