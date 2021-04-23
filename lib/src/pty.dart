@@ -102,14 +102,14 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
 /// flutter hot reload from working. Ideal for release builds. The underlying
 /// PtyCore must be blocking.
 class BlockingPseudoTerminal extends BasePseudoTerminal {
-  BlockingPseudoTerminal(PtyCore _core) : super(_core) {
+  BlockingPseudoTerminal(PtyCore _core) : super(_core);
+
+  @override
+  void init() {
     final receivePort = ReceivePort();
     Isolate.spawn(_readUntilExit, _IsolateArgs(receivePort.sendPort, _core));
     out = receivePort.cast();
   }
-
-  @override
-  void init() {}
 
   @override
   Future<int> get exitCode async {
