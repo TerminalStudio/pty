@@ -49,7 +49,7 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
     _exitCode = Completer<int>();
     _out = StreamController<String>();
     _initialized = true;
-    Timer.periodic(Duration(milliseconds: 1), _poll);
+    Timer.periodic(Duration(milliseconds: 5), _poll);
   }
 
   void _poll(Timer timer) {
