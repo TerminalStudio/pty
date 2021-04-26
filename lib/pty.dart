@@ -19,6 +19,7 @@ abstract class PseudoTerminal {
     String? workingDirectory,
     Map<String, String>? environment,
     bool blocking = false,
+    bool ackProcessed = false,
     // bool includeParentEnvironment = true,
     // bool runInShell = false,
     // ProcessStartMode mode = ProcessStartMode.normal,
@@ -48,7 +49,7 @@ abstract class PseudoTerminal {
     }
 
     if (blocking) {
-      return BlockingPseudoTerminal(core);
+      return BlockingPseudoTerminal(core, ackProcessed);
     } else {
       return PollingPseudoTerminal(core);
     }
@@ -66,6 +67,8 @@ abstract class PseudoTerminal {
   void write(String input);
 
   Stream<String> get out;
+
+  void ackProcessed();
 
   void resize(int width, int height);
 }

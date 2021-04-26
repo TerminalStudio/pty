@@ -95,6 +95,11 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
   Stream<String> get out {
     return _out.stream;
   }
+
+  @override
+  void ackProcessed() {
+    // NOOP
+  }
 }
 
 /// An isolate based PseudoTerminal implementation. Performs better than
@@ -102,35 +107,61 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
 /// flutter hot reload from working. Ideal for release builds. The underlying
 /// PtyCore must be blocking.
 class BlockingPseudoTerminal extends BasePseudoTerminal {
-  BlockingPseudoTerminal(PtyCore _core) : super(_core);
+  BlockingPseudoTerminal(PtyCore _core, this._syncProcessed) : super(_core);
+
+  late SendPort _sendPort;
+  final bool _syncProcessed;
+  late final StreamController<String> _outStreamController;
 
   @override
-  void init() {
+  void init() async {
+    _outStreamController = StreamController<String>();
+    out = _outStreamController.stream;
+
     final receivePort = ReceivePort();
-    Isolate.spawn(_readUntilExit, _IsolateArgs(receivePort.sendPort, _core));
-    out = receivePort.cast();
+    await Isolate.spawn(_readUntilExit,
+        _IsolateArgs(receivePort.sendPort, _core, _syncProcessed));
+    bool first = true;
+    await for (var msg in receivePort) {
+      if (first) {
+        _sendPort = msg;
+        _sendPort.send(true);
+      } else {
+        _outStreamController.sink.add(msg);
+      }
+      first = false;
+    }
   }
 
   @override
   Future<int> get exitCode async {
     final receivePort = ReceivePort();
     // ignore: unawaited_futures
-    Isolate.spawn(_waitForExitCode, _IsolateArgs(receivePort.sendPort, _core));
+    Isolate.spawn(_waitForExitCode,
+        _IsolateArgs(receivePort.sendPort, _core, _syncProcessed));
     return (await receivePort.first) as int;
   }
 
   @override
   late Stream<String> out;
+
+  @override
+  void ackProcessed() {
+    if (_syncProcessed) {
+      _sendPort.send(true);
+    }
+  }
 }
 
 /// Argument to a isolate entry point, with a sendPort and a custom value.
 /// Reduces the effort to establish bi-directional communication between isolate
 /// and main thread in many cases.
 class _IsolateArgs<T> {
-  _IsolateArgs(this.sendPort, this.arg);
+  _IsolateArgs(this.sendPort, this.arg, this.syncProcessed);
 
   final SendPort sendPort;
   final T arg;
+  final bool syncProcessed;
 }
 
 void _waitForExitCode(_IsolateArgs<PtyCore> ctx) async {
@@ -139,20 +170,36 @@ void _waitForExitCode(_IsolateArgs<PtyCore> ctx) async {
 }
 
 void _readUntilExit(_IsolateArgs<PtyCore> ctx) async {
+  final rp = ReceivePort();
+  ctx.sendPort.send(rp.sendPort);
+
   // set [sync] to true because PtyCore.read() is blocking and prevents the
   // event loop from working.
   final input = StreamController<List<int>>(sync: true);
 
   input.stream.transform(utf8.decoder).listen(ctx.sendPort.send);
 
-  while (true) {
-    final data = ctx.arg.read();
+  if (ctx.syncProcessed) {
+    await for (bool val in rp) {
+      final data = ctx.arg.read();
 
-    if (data == null) {
-      await input.close();
-      break;
+      if (data == null) {
+        await input.close();
+        break;
+      }
+
+      input.sink.add(data);
     }
+  } else {
+    while (true) {
+      final data = ctx.arg.read();
 
-    input.sink.add(data);
+      if (data == null) {
+        await input.close();
+        break;
+      }
+
+      input.sink.add(data);
+    }
   }
 }
