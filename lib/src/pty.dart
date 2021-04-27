@@ -179,27 +179,28 @@ void _readUntilExit(_IsolateArgs<PtyCore> ctx) async {
 
   input.stream.transform(utf8.decoder).listen(ctx.sendPort.send);
 
-  if (ctx.syncProcessed) {
-    await for (bool val in rp) {
-      final data = ctx.arg.read();
+  final loopController = StreamController<bool>();
 
-      if (data == null) {
-        await input.close();
-        break;
-      }
+  rp.listen((message) {
+    loopController.sink.add(message);
+  });
 
-      input.sink.add(data);
+  await for (final _ in loopController.stream) {
+    final data = ctx.arg.read();
+
+    if (data == null) {
+      await input.close();
+      break;
     }
-  } else {
-    while (true) {
-      final data = ctx.arg.read();
 
-      if (data == null) {
-        await input.close();
-        break;
-      }
+    input.sink.add(data);
 
-      input.sink.add(data);
+    // when we don't sync with the data processing then just schedule the next loop
+    // iteration
+    // Otherwise the loop will continue when the processing of the data is
+    // finished (signaled via [PseudoTerminal.ackProcessed])
+    if (!ctx.syncProcessed) {
+      loopController.sink.add(true);
     }
   }
 }
