@@ -123,7 +123,6 @@ class BlockingPseudoTerminal extends BasePseudoTerminal {
     receivePort.listen((msg) {
       if (first) {
         _sendPort = msg;
-        _sendPort.send(true);
       } else {
         _outStreamController.sink.add(msg);
       }
@@ -181,9 +180,12 @@ void _readUntilExit(_IsolateArgs<PtyCore> ctx) async {
 
   final loopController = StreamController<bool>();
 
-  rp.listen((message) {
-    loopController.sink.add(message);
-  });
+  if (ctx.syncProcessed) {
+    rp.listen((message) {
+      loopController.sink.add(message);
+    });
+  }
+  loopController.sink.add(true); //enable the first iteration
 
   await for (final _ in loopController.stream) {
     final data = ctx.arg.read();
@@ -203,4 +205,5 @@ void _readUntilExit(_IsolateArgs<PtyCore> ctx) async {
       loopController.sink.add(true);
     }
   }
+  await loopController.close();
 }
