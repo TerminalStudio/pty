@@ -114,15 +114,13 @@ class BlockingPseudoTerminal extends BasePseudoTerminal {
   late final StreamController<String> _outStreamController;
 
   @override
-  void init() async {
+  void init() {
     _outStreamController = StreamController<String>();
     out = _outStreamController.stream;
 
     final receivePort = ReceivePort();
-    await Isolate.spawn(_readUntilExit,
-        _IsolateArgs(receivePort.sendPort, _core, _syncProcessed));
-    bool first = true;
-    await for (var msg in receivePort) {
+    var first = true;
+    receivePort.listen((msg) {
       if (first) {
         _sendPort = msg;
         _sendPort.send(true);
@@ -130,7 +128,9 @@ class BlockingPseudoTerminal extends BasePseudoTerminal {
         _outStreamController.sink.add(msg);
       }
       first = false;
-    }
+    });
+    Isolate.spawn(_readUntilExit,
+        _IsolateArgs(receivePort.sendPort, _core, _syncProcessed));
   }
 
   @override
