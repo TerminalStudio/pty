@@ -41,7 +41,6 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
   //so that this PollingPseudoTerminal can be passed to an Isolate
   late Completer<int> _exitCode;
   late StreamController<String> _out;
-  final _rawDataBuffer = List<int>.empty(growable: true);
   bool _initialized = false;
 
   @override
@@ -49,40 +48,88 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
     _exitCode = Completer<int>();
     _out = StreamController<String>();
     _initialized = true;
-    Timer.periodic(Duration(milliseconds: 5), _poll);
+    Timer.run(() {
+      _poll();
+    });
   }
 
-  void _poll(Timer timer) {
-    final exit = _core.exitCodeNonBlocking();
-    if (exit != null) {
-      _exitCode.complete(exit);
-      _out.close();
-      timer.cancel();
-      return;
-    }
-
-    var receivedSomething = false;
-
-    var data = _core.read();
-    while (data != null) {
-      receivedSomething = true;
-      _rawDataBuffer.addAll(data);
-      data = _core.read();
-    }
-    if (!_initialized) {
-      return;
-    }
-    if (receivedSomething && _rawDataBuffer.isNotEmpty) {
-      try {
-        final strContent = utf8.decode(_rawDataBuffer);
-        _rawDataBuffer.clear();
-        _out.add(strContent);
-      } on FormatException catch (ex) {
-        // FormatException is thrown when the data contains incomplete
-        // UTF-8 byte sequences.
-        // int this case we do nothing and wait for the next chunk of data
-        // to arrive
+  List<int> _createDelayMicrosecondsStepList(
+      Map<int, int> delayMicrosecondsToAmountMap) {
+    final result = List<int>.empty(growable: true);
+    final maxVal = delayMicrosecondsToAmountMap.keys.fold(
+        1,
+        (int previousValue, int element) =>
+            (element > previousValue) ? element : previousValue);
+    for (var i = 1; i <= maxVal; i++) {
+      if (delayMicrosecondsToAmountMap.containsKey(i)) {
+        result.addAll(List<int>.filled(delayMicrosecondsToAmountMap[i]!, i));
       }
+    }
+    return result;
+  }
+
+  void _poll() async {
+    final delayMicrosecondsSteps = _createDelayMicrosecondsStepList({
+      200: 50,
+      500: 50,
+      1000: 50,
+      2000: 50,
+      3000: 40,
+      4000: 30,
+      5000: 20,
+      10000: 10,
+      20000: 5,
+      50000: 2,
+      70000: 1,
+      100000: 1,
+    });
+
+    var delayStepIndex = 0;
+
+    final rawDataBuffer = List<int>.empty(growable: true);
+
+    while (true) {
+      final exit = _core.exitCodeNonBlocking();
+      if (exit != null) {
+        _exitCode.complete(exit);
+        await _out.close();
+        return;
+      }
+
+      var receivedSomething = false;
+
+      var data = _core.read();
+      while (data != null) {
+        receivedSomething = true;
+        rawDataBuffer.addAll(data);
+        data = _core.read();
+      }
+      if (!receivedSomething) {
+        // when we did not receive anything then we increase the delay time
+        if (delayStepIndex < delayMicrosecondsSteps.length - 1) {
+          delayStepIndex++;
+        }
+      } else {
+        //when we received something we jump to the lowest delay time
+        delayStepIndex = 0;
+      }
+
+      if (_initialized) {
+        if (receivedSomething && rawDataBuffer.isNotEmpty) {
+          try {
+            final strContent = utf8.decode(rawDataBuffer);
+            rawDataBuffer.clear();
+            _out.add(strContent);
+          } on FormatException catch (_) {
+            // FormatException is thrown when the data contains incomplete
+            // UTF-8 byte sequences.
+            // int this case we do nothing and wait for the next chunk of data
+            // to arrive
+          }
+        }
+      }
+      await Future.delayed(
+          Duration(microseconds: delayMicrosecondsSteps[delayStepIndex]));
     }
   }
 
