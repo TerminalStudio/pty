@@ -56,13 +56,12 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
   List<int> _createDelayMicrosecondsStepList(
       Map<int, int> delayMicrosecondsToAmountMap) {
     final result = List<int>.empty(growable: true);
-    final maxVal = delayMicrosecondsToAmountMap.keys.fold(
-        1,
-        (int previousValue, int element) =>
-            (element > previousValue) ? element : previousValue);
-    for (var i = 1; i <= maxVal; i++) {
-      if (delayMicrosecondsToAmountMap.containsKey(i)) {
-        result.addAll(List<int>.filled(delayMicrosecondsToAmountMap[i]!, i));
+    final sortedKeys = delayMicrosecondsToAmountMap.keys.toList(growable: false)
+      ..sort();
+    for (final key in sortedKeys) {
+      if (delayMicrosecondsToAmountMap.containsKey(key)) {
+        result
+            .addAll(List<int>.filled(delayMicrosecondsToAmountMap[key]!, key));
       }
     }
     return result;
@@ -115,7 +114,7 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
       }
 
       if (_initialized) {
-        if (receivedSomething && rawDataBuffer.isNotEmpty) {
+        if (rawDataBuffer.isNotEmpty) {
           try {
             final strContent = utf8.decode(rawDataBuffer);
             rawDataBuffer.clear();
