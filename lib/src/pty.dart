@@ -59,10 +59,7 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
     final sortedKeys = delayMicrosecondsToAmountMap.keys.toList(growable: false)
       ..sort();
     for (final key in sortedKeys) {
-      if (delayMicrosecondsToAmountMap.containsKey(key)) {
-        result
-            .addAll(List<int>.filled(delayMicrosecondsToAmountMap[key]!, key));
-      }
+      result.addAll(List<int>.filled(delayMicrosecondsToAmountMap[key]!, key));
     }
     return result;
   }
