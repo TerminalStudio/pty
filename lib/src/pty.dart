@@ -82,14 +82,22 @@ class PollingPseudoTerminal extends BasePseudoTerminal {
 
     var delayStepIndex = 0;
 
+    var exitCodeCheckNeeded = true;
+
     final rawDataBuffer = List<int>.empty(growable: true);
 
     while (true) {
-      final exit = _core.exitCodeNonBlocking();
-      if (exit != null) {
-        _exitCode.complete(exit);
-        await _out.close();
-        return;
+      if (exitCodeCheckNeeded) {
+        final exit = _core.exitCodeNonBlocking();
+        if (exit != null) {
+          _exitCode.complete(exit);
+          await _out.close();
+          return;
+        }
+        exitCodeCheckNeeded = false;
+        Timer(Duration(milliseconds: 500), () {
+          exitCodeCheckNeeded = true;
+        });
       }
 
       var receivedSomething = false;
