@@ -97,13 +97,19 @@ class PtyCoreWindows implements PtyCore {
       throw PtyException('CreatePseudoConsole failed.');
     }
 
-    // setup startup info
+    // Setup startup info
     final si = calloc<win32.STARTUPINFOEX>();
     si.ref.StartupInfo.cb = sizeOf<win32.STARTUPINFOEX>();
 
+    // Explicitly set stdio of the child process to NULL. This is required for
+    // ConPTY to work properly.
+    si.ref.StartupInfo.hStdInput = nullptr.address;
+    si.ref.StartupInfo.hStdOutput = nullptr.address;
+    si.ref.StartupInfo.hStdError = nullptr.address;
+    si.ref.StartupInfo.dwFlags = win32.STARTF_USESTDHANDLES;
+
     final bytesRequired = calloc<IntPtr>();
-    win32.InitializeProcThreadAttributeList(
-        nullptr, 1, 0, bytesRequired);
+    win32.InitializeProcThreadAttributeList(nullptr, 1, 0, bytesRequired);
     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
 
     var ret = win32.InitializeProcThreadAttributeList(
@@ -220,7 +226,12 @@ class PtyCoreWindows implements PtyCore {
     final pReadlen = calloc<Uint32>();
     final buffer = Pointer.fromAddress(_buffer);
     final ret = win32.ReadFile(
-        _outputReadSide, buffer, _bufferSize, pReadlen, nullptr);
+      _outputReadSide,
+      buffer,
+      _bufferSize,
+      pReadlen,
+      nullptr,
+    );
 
     final readlen = pReadlen.value;
     calloc.free(pReadlen);
