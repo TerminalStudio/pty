@@ -103,11 +103,11 @@ class PtyCoreWindows implements PtyCore {
 
     final bytesRequired = calloc<IntPtr>();
     win32.InitializeProcThreadAttributeList(
-        nullptr.address, 1, 0, bytesRequired);
+        nullptr, 1, 0, bytesRequired);
     si.ref.lpAttributeList = calloc<Int8>(bytesRequired.value);
 
     var ret = win32.InitializeProcThreadAttributeList(
-        si.ref.lpAttributeList.address, 1, 0, bytesRequired);
+        si.ref.lpAttributeList, 1, 0, bytesRequired);
 
     if (ret == win32.FALSE) {
       throw PtyException('InitializeProcThreadAttributeList failed.');
@@ -115,7 +115,7 @@ class PtyCoreWindows implements PtyCore {
 
     // use pty
     ret = win32.UpdateProcThreadAttribute(
-      si.ref.lpAttributeList.address,
+      si.ref.lpAttributeList,
       0,
       win32.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
       Pointer.fromAddress(_hPty.value),
