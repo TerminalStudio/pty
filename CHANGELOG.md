@@ -1,3 +1,8 @@
+## 0.2.2-pre
+
+- Upgrade win32 package to 2.1.x
+- Fix Windows stdio handle leak issue.
+
 ## 0.2.1-pre
 
 - Bugfix: path error macos zsh [#4](https://github.com/TerminalStudio/pty/pull/4), thanks [@devmil](https://github.com/devmil)
