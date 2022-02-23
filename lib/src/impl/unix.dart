@@ -174,7 +174,7 @@ class PtyCoreUnix implements PtyCore {
 
     if (ret == -1) {
       print(_ptm);
-      print(unix.errno.value);
+      // print(unix.errno.value);
       unix.perror(nullptr);
     }
   }

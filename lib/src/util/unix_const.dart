@@ -2,7 +2,18 @@
 
 import 'dart:io';
 
-final consts = Platform.isLinux ? LinuxConst() : BsdConst();
+final consts = Platform.isAndroid
+    ? AndroidConst()
+    : Platform.isLinux
+        ? LinuxConst()
+        : BsdConst();
+
+class AndroidConst extends BsdConst {
+  @override
+  final TIOCSWINSZ = 0x5414;
+  @override
+  final O_NONBLOCK = 4000;
+}
 
 class LinuxConst implements BsdConst {
   final IUTF8 = 16384;

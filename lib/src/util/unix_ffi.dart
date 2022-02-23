@@ -134,7 +134,10 @@ class Unix {
     final utilsLib =
         Platform.isLinux ? DynamicLibrary.open('libutil.so') : null;
 
-    errno = lib.lookup<Int32>('errno');
+    if (!Platform.isAndroid) {
+      // this line will crash on android
+      errno = lib.lookup<Int32>('errno');
+    } else {}
 
     open = lib.lookupFunction<_c_open, _dart_open>('open');
     grantpt = lib.lookupFunction<_c_grantpt, _dart_grantpt>('grantpt');
@@ -166,7 +169,7 @@ class Unix {
     }
   }
 
-  late final Pointer<Int32> errno;
+  Pointer<Int32>? errno;
 
   late final _dart_open open;
   late final _dart_grantpt grantpt;
